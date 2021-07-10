@@ -1,23 +1,18 @@
-extern crate gio;
-extern crate gtk;
+mod components;
 
-// To import all needed traits.
-//use gio::prelude::*;
-use gtk::{prelude::*, Window, WindowPosition, WindowType};
+use components::window::Window;
+use gio::prelude::*;
 
-fn main() {
-    gtk::init().unwrap();
+fn on_activate(application: &gtk::Application) {
+    let window = Window::new(application);
 
-    init_window();
-
-    gtk::main();
+    window.start();
 }
 
-fn init_window() {
-    let popup = Window::new(WindowType::Popup);
+fn main() {
+    let app = gtk::Application::new(Some("vbetivu.data-dealer"), Default::default());
 
-    popup.set_size_request(500, 700);
-    popup.set_position(WindowPosition::Center);
+    app.connect_activate(|app| on_activate(app));
 
-    popup.show_all();
+    app.run();
 }
