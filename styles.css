@@ -1,0 +1,10 @@
+#letter_label {
+  font-weight: bold;
+}
+
+button {
+  background-image: none;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}

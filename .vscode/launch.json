@@ -1,0 +1,45 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'data_dealer'",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=data_dealer",
+          "--package=data_dealer"
+        ],
+        "filter": {
+          "name": "data_dealer",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'data_dealer'",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--bin=data_dealer",
+          "--package=data_dealer"
+        ],
+        "filter": {
+          "name": "data_dealer",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
