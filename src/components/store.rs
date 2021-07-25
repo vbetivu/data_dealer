@@ -19,10 +19,18 @@ impl Store {
             .expect(&format!("Missing key requested {}", key))
     }
 
-    pub fn get_rows(&self) -> Vec<RowVariant> {
-        let Store(map) = self;
+    pub fn get_rows(&self, query: &str) -> Vec<RowVariant> {
+        let Store(store) = self;
 
-        let mut headings: Vec<char> = map.keys().map(|key| key.chars().next().unwrap()).collect();
+        let valid_map: Vec<(&String, &String)> = store
+            .iter()
+            .filter(|(key, ..)| key.contains(query))
+            .collect();
+
+        let mut headings: Vec<char> = valid_map
+            .iter()
+            .map(|(key, ..)| key.chars().next().unwrap())
+            .collect();
 
         headings.sort();
         headings.dedup();
@@ -32,7 +40,7 @@ impl Store {
             .map(|e| RowVariant::Heading(e))
             .collect();
 
-        let mut data: Vec<RowVariant> = map
+        let mut data: Vec<RowVariant> = valid_map
             .into_iter()
             .map(|(key, value)| RowVariant::Data(key.clone(), value.clone()))
             .collect();

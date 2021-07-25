@@ -23,7 +23,7 @@ impl Window {
         self.set_end_conditions();
         self.set_window_properties();
         self.set_window_styles();
-        self.render_children();
+        self.render();
 
         window.show_all();
     }
@@ -61,56 +61,84 @@ impl Window {
         // window.set_border_width(20);
     }
 
-    fn render_children(&self) {
+    fn render(&self) {
         let Window { window, store } = self;
+        let local_store = Rc::clone(store);
 
         let main = gtk::Box::new(gtk::Orientation::Vertical, 24);
+
+        let input = gtk::Entry::new();
 
         let list = gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
         list.set_expand(true);
 
         let container = gtk::Box::new(gtk::Orientation::Vertical, 20);
 
-        let rows = store.get_rows();
-        let mut sections: Vec<gtk::Box> = Vec::with_capacity(rows.len());
-
-        for row in rows {
-            match row {
-                RowVariant::Heading(letter) => {
-                    let section = gtk::Box::new(gtk::Orientation::Vertical, 16);
-                    let label = gtk::Label::new(Some(&letter.to_string()));
-                    section.add(&label);
-                    sections.push(section);
-                }
-                RowVariant::Data(key, value) => {
-                    let local_store = Rc::clone(store);
-
-                    let section = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-                    let button = gtk::Button::new();
-                    let wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-                    let key_label = gtk::Label::new(Some(&key));
-                    let value_label = gtk::Label::new(Some(&value));
-
-                    button.connect_clicked(move |_| write_to_clipboard(local_store.get(&key)));
-
-                    add_child(
-                        &section,
-                        add_child(
-                            &button,
-                            add_children(&wrapper, vec![key_label, value_label]),
-                        ),
-                    );
-
-                    sections.push(section);
-                }
-            }
-        }
+        add_child(&main, &input);
 
         add_child(
             window,
-            add_child(&main, add_child(&list, add_children(&container, sections))),
+            add_child(
+                &main,
+                add_child(&list, add_children(&container, create_list(store, ""))),
+            ),
         );
+
+        input.connect_changed(move |element| {
+            container
+                .children()
+                .iter()
+                .for_each(|child| container.remove(child));
+
+            add_children(
+                &container,
+                create_list(&local_store, &element.buffer().text()),
+            );
+
+            container.show_all();
+
+            println!("Input value: {}", element.buffer().text());
+        });
     }
+}
+
+fn create_list(store: &Rc<Store>, query: &str) -> Vec<gtk::Box> {
+    let rows = store.get_rows(query);
+    let mut sections: Vec<gtk::Box> = Vec::with_capacity(rows.len());
+
+    for row in rows {
+        match row {
+            RowVariant::Heading(letter) => {
+                let section = gtk::Box::new(gtk::Orientation::Vertical, 16);
+                let label = gtk::Label::new(Some(&letter.to_string()));
+                section.add(&label);
+                sections.push(section);
+            }
+            RowVariant::Data(key, value) => {
+                let local_store = Rc::clone(store);
+
+                let section = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+                let button = gtk::Button::new();
+                let wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+                let key_label = gtk::Label::new(Some(&key));
+                let value_label = gtk::Label::new(Some(&value));
+
+                button.connect_clicked(move |_| write_to_clipboard(local_store.get(&key)));
+
+                add_child(
+                    &section,
+                    add_child(
+                        &button,
+                        add_children(&wrapper, vec![key_label, value_label]),
+                    ),
+                );
+
+                sections.push(section);
+            }
+        }
+    }
+
+    return sections;
 }
 
 fn add_child<'a, T: ContainerExt, U: IsA<Widget>>(element: &'a T, child: &U) -> &'a T {
