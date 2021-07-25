@@ -22,6 +22,8 @@ impl Store {
     pub fn get_rows(&self, query: &str) -> Vec<RowVariant> {
         let Store(store) = self;
 
+        let query = query.trim();
+
         let valid_map: Vec<(&String, &String)> = store
             .iter()
             .filter(|(key, ..)| key.contains(query))
