@@ -1,36 +1,44 @@
-use std::{collections::HashMap, io::Read};
+use std::fs;
+use std::{collections::HashMap, io::BufReader};
 
 pub enum RowVariant {
     Heading(char),
     Data(String, String),
 }
 
-pub struct Store(HashMap<String, String>);
+pub struct Store {
+    state: HashMap<String, String>,
+    file: fs::File,
+}
 
 impl Store {
-    pub fn new(reader: &mut dyn Read) -> Store {
-        Store(serde_json::from_reader(reader).unwrap())
+    pub fn new(file: fs::File) -> Store {
+        return Store {
+            state: serde_json::from_reader(BufReader::new(&file)).unwrap(),
+            file,
+        };
     }
 
     pub fn set(&mut self, key: String, value: String) {
-        let Store(store) = self;
+        let Store { state, .. } = self;
 
-        store.insert(key, value);
+        state.insert(key, value);
     }
 
     pub fn get(&self, key: &str) -> &str {
-        let Store(map) = self;
+        let Store { state, .. } = self;
 
-        map.get(key)
+        state
+            .get(key)
             .expect(&format!("Missing key requested {}", key))
     }
 
     pub fn get_rows(&self, query: &str) -> Vec<RowVariant> {
-        let Store(store) = self;
+        let Store { state, .. } = self;
 
         let query = query.trim();
 
-        let valid_map: Vec<(&String, &String)> = store
+        let valid_map: Vec<(&String, &String)> = state
             .iter()
             .filter(|(key, ..)| key.contains(query))
             .collect();

@@ -2,7 +2,7 @@ mod components;
 
 use gio::prelude::*;
 use gtk::prelude::*;
-use std::{fs, io::BufReader};
+use std::fs;
 
 use components::store::Store;
 use components::window::Window;
@@ -18,8 +18,7 @@ fn main() {
 
     app.connect_activate(|app| {
         let store_file = fs::File::open("store.json").unwrap();
-        let mut buf_reader = BufReader::new(store_file);
-        let store = Store::new(&mut buf_reader);
+        let store = Store::new(store_file);
 
         let provider = gtk::CssProvider::new();
 
