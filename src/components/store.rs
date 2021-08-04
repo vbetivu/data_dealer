@@ -12,6 +12,12 @@ impl Store {
         Store(serde_json::from_reader(reader).unwrap())
     }
 
+    pub fn set(&mut self, key: String, value: String) {
+        let Store(store) = self;
+
+        store.insert(key, value);
+    }
+
     pub fn get(&self, key: &str) -> &str {
         let Store(map) = self;
 
