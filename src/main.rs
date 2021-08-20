@@ -18,8 +18,7 @@ fn main() {
     let app = gtk::Application::new(Some("vbetivu.data-dealer"), Default::default());
 
     app.connect_activate(|app| {
-        let store_file = fs::File::open("store.json").unwrap();
-        let store = Store::new(store_file);
+        let store = Store::new();
 
         let provider = gtk::CssProvider::new();
 

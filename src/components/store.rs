@@ -1,5 +1,8 @@
 use std::fs;
+use std::io::Write;
 use std::{collections::HashMap, io::BufReader};
+
+const STORE_FILE: &str = "store.json";
 
 pub enum RowVariant {
     Heading(char),
@@ -8,21 +11,26 @@ pub enum RowVariant {
 
 pub struct Store {
     state: HashMap<String, String>,
-    file: fs::File,
 }
 
 impl Store {
-    pub fn new(file: fs::File) -> Store {
+    pub fn new() -> Store {
+        let store_file = fs::File::open(STORE_FILE).unwrap();
+
         return Store {
-            state: serde_json::from_reader(BufReader::new(&file)).unwrap(),
-            file,
+            state: serde_json::from_reader(BufReader::new(&store_file)).unwrap(),
         };
     }
 
     pub fn set(&mut self, key: String, value: String) {
-        let Store { state, .. } = self;
+        let Store { state } = self;
+        let mut store_file = fs::File::create(STORE_FILE).unwrap();
 
         state.insert(key, value);
+
+        store_file
+            .write_all(serde_json::to_string(&state).unwrap().as_bytes())
+            .unwrap();
     }
 
     pub fn get(&self, key: &str) -> &str {
