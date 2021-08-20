@@ -1,9 +1,11 @@
 use gtk::prelude::*;
-use gtk::{self, Widget};
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::store::{RowVariant, Store};
+use super::list::List;
+use super::store::Store;
+use crate::utils::add_child;
 
 pub struct Window {
     window: gtk::ApplicationWindow,
@@ -66,19 +68,17 @@ impl Window {
         let Window { window, store } = self;
 
         let main = gtk::Box::new(gtk::Orientation::Vertical, 24);
-
         let top_row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-
         let input = gtk::Entry::new();
-
         let add_button = gtk::Button::new();
+        let scrolling_section =
+            gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
+        let list = Rc::new(List::new());
+
         add_button.set_label("+");
+        scrolling_section.set_expand(true);
 
-        let list = gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
-        list.set_expand(true);
-
-        let container = gtk::Box::new(gtk::Orientation::Vertical, 20);
-        let container_holder = Rc::new(container);
+        list.render(store.borrow().get_rows(""));
 
         add_child(&top_row, &input);
         add_child(&top_row, &add_button);
@@ -86,50 +86,21 @@ impl Window {
 
         add_child(
             window,
-            add_child(
-                &main,
-                add_child(
-                    &list,
-                    add_children(
-                        container_holder.as_ref(),
-                        create_list(store.borrow().get_rows("")),
-                    ),
-                ),
-            ),
+            add_child(&main, add_child(&scrolling_section, &list.root)),
         );
 
-        let input_store = Rc::clone(store);
-        let input_container = Rc::clone(&container_holder);
+        let store_ref = Rc::clone(store);
+        let list_ref = Rc::clone(&list);
         input.connect_changed(move |element| {
-            input_container
-                .children()
-                .iter()
-                .for_each(|child| input_container.remove(child));
-
-            add_children(
-                input_container.as_ref(),
-                create_list(input_store.borrow().get_rows(&element.buffer().text())),
-            );
-
-            input_container.show_all();
+            list_ref.render(store_ref.borrow().get_rows(&element.buffer().text()));
         });
 
-        let add_btn_store = Rc::clone(store);
-        let button_container = Rc::clone(&container_holder);
+        let store_ref = Rc::clone(store);
+        let list_ref = Rc::clone(&list);
         add_button.connect_clicked(glib::clone!(@weak window => move |_| {
-            show_dialog(window, &add_btn_store);
+            show_dialog(window, &store_ref);
 
-            button_container
-                .children()
-                .iter()
-                .for_each(|child| button_container.remove(child));
-
-            add_children(
-                button_container.as_ref(),
-                create_list(add_btn_store.borrow().get_rows("")),
-            );
-
-            button_container.show_all();
+            list_ref.render(store_ref.borrow().get_rows(""));
         }));
     }
 }
@@ -181,60 +152,4 @@ fn show_dialog<W: IsA<gtk::Window>>(window: W, store: &Rc<RefCell<Store>>) {
     unsafe {
         question_dialog.destroy();
     }
-}
-
-fn create_list(rows: Vec<RowVariant>) -> Vec<gtk::Box> {
-    let mut sections: Vec<gtk::Box> = Vec::with_capacity(rows.len());
-
-    for row in rows {
-        match row {
-            RowVariant::Heading(letter) => {
-                let section = gtk::Box::new(gtk::Orientation::Vertical, 16);
-                let label = gtk::Label::new(Some(&letter.to_string()));
-                section.add(&label);
-                sections.push(section);
-            }
-            RowVariant::Data(key, value) => {
-                let section = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-                let button = gtk::Button::new();
-                let wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-                let key_label = gtk::Label::new(Some(&key));
-                let value_label = gtk::Label::new(Some(&value));
-
-                button.connect_clicked(move |_| write_to_clipboard(&value));
-
-                add_child(
-                    &section,
-                    add_child(
-                        &button,
-                        add_children(&wrapper, vec![key_label, value_label]),
-                    ),
-                );
-
-                sections.push(section);
-            }
-        }
-    }
-
-    return sections;
-}
-
-fn add_child<'a, T: ContainerExt, U: IsA<Widget>>(element: &'a T, child: &U) -> &'a T {
-    element.add(child);
-
-    return element;
-}
-
-fn add_children<'a, T: ContainerExt, U: IsA<Widget>>(element: &'a T, children: Vec<U>) -> &'a T {
-    for child in children {
-        element.add(&child);
-    }
-
-    return element;
-}
-
-fn write_to_clipboard(value: &str) {
-    let clipboard = gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD);
-
-    clipboard.set_text(value);
 }

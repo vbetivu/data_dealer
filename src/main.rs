@@ -1,4 +1,5 @@
 mod components;
+mod utils;
 
 use gio::prelude::*;
 use gtk::prelude::*;
