@@ -140,7 +140,9 @@ fn show_dialog<W: IsA<gtk::Window>>(window: W, store: &Rc<RefCell<Store>>) {
                 .unwrap()
                 .to_string();
 
-            store.borrow_mut().set(new_key, new_value)
+            store
+                .borrow_mut()
+                .dispatch(Action::AddNewEntry(new_key, new_value));
         }
         _ => (),
     }
