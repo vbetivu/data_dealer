@@ -3,8 +3,8 @@ use gtk::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::list::List;
-use super::store::Store;
+use super::list::ListContainer;
+use super::store::{Action, Store};
 use crate::utils::add_child;
 
 pub struct Window {
@@ -73,12 +73,10 @@ impl Window {
         let add_button = gtk::Button::new();
         let scrolling_section =
             gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
-        let list = Rc::new(List::new());
+        let list = ListContainer::new(&mut store.borrow_mut());
 
         add_button.set_label("+");
         scrolling_section.set_expand(true);
-
-        list.render(store.borrow().get_rows(""));
 
         add_child(&top_row, &input);
         add_child(&top_row, &add_button);
@@ -86,21 +84,21 @@ impl Window {
 
         add_child(
             window,
-            add_child(&main, add_child(&scrolling_section, &list.root)),
+            add_child(&main, add_child(&scrolling_section, &list.component)),
         );
 
         let store_ref = Rc::clone(store);
-        let list_ref = Rc::clone(&list);
+
         input.connect_changed(move |element| {
-            list_ref.render(store_ref.borrow().get_rows(&element.buffer().text()));
+            store_ref
+                .borrow_mut()
+                .dispatch(Action::SetQuery(element.buffer().text()))
         });
 
         let store_ref = Rc::clone(store);
-        let list_ref = Rc::clone(&list);
+
         add_button.connect_clicked(glib::clone!(@weak window => move |_| {
             show_dialog(window, &store_ref);
-
-            list_ref.render(store_ref.borrow().get_rows(""));
         }));
     }
 }
