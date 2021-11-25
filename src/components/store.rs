@@ -28,7 +28,7 @@ impl Subscriber {
         }
     }
 
-    fn notify(&self, state: &mut State) {
+    fn notify(&self, state: &State) {
         let value = (self.selector)(state);
 
         self.component.render(value);
@@ -120,7 +120,7 @@ impl Store {
         self.notify();
     }
 
-    pub fn subscribe<S>(&mut self, selector: S, component: ConnectComponentType)
+    pub fn subscribe<S>(&mut self, component: ConnectComponentType, selector: S)
     where
         S: Fn(&State) -> ComponentProps + 'static,
     {
@@ -147,7 +147,7 @@ impl Store {
         self.state.query = query;
     }
 
-    fn notify(&mut self) {
+    fn notify(&self) {
         let Store {
             subscribers, state, ..
         } = self;

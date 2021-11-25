@@ -18,10 +18,9 @@ impl ListContainer {
 
         component.add(&list.root);
 
-        store.subscribe(
-            |state: &State| return ComponentProps::List(state.get_visible_rows()),
-            ConnectComponentType::List(list),
-        );
+        store.subscribe(ConnectComponentType::List(list), |state: &State| {
+            return ComponentProps::List(state.get_visible_rows());
+        });
 
         ListContainer { component }
     }
