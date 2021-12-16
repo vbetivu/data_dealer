@@ -11,6 +11,10 @@ pub enum Action {
     SetQuery(String),
     AddNewEntry(String, String),
     RemoveEntry(String),
+}
+
+enum StoreAction {
+    StateUpdate(Action),
     Subscribe(
         ConnectComponentType,
         Box<dyn Fn(&State) -> ComponentProps + 'static>,
@@ -33,10 +37,10 @@ impl Subscriber {
         }
     }
 
-    fn notify(&self, state: &State, dispatcher: glib::Sender<Action>) {
+    fn notify(&self, state: &State) {
         let value = (self.selector)(state);
 
-        self.component.render(value, dispatcher);
+        self.component.render(value);
     }
 }
 
@@ -50,84 +54,29 @@ pub struct State {
     pub query: String,
 }
 
-impl State {}
-
-pub struct Store {
-    state: State,
-    subscribers: Vec<Subscriber>,
-    dispatcher: glib::Sender<Action>,
-}
-
-impl Store {
-    pub fn new() -> glib::Sender<Action> {
-        let store_file = fs::File::open(STORE_FILE).unwrap();
-
-        // let (tx, rx): (Sender<Action>, Receiver<Action>) = mpsc::channel();
-
-        let (tx, rx) = glib::MainContext::channel::<Action>(glib::PRIORITY_DEFAULT);
-
-        let mut store = Store {
-            state: State {
-                rows_by_id: serde_json::from_reader(BufReader::new(&store_file)).unwrap(),
-                query: String::new(),
-            },
-            subscribers: Vec::new(),
-            dispatcher: tx.clone(),
-        };
-
-        rx.attach(None, move |action| {
-            match action {
-                Action::SetQuery(payload) => store.set_query(payload),
-                Action::AddNewEntry(key, value) => store.add(key, value),
-                Action::RemoveEntry(key) => store.remove(key),
-                Action::Subscribe(component, selector) => store.subscribe(component, selector),
-            }
-
-            store.notify();
-
-            return glib::Continue(true);
-        });
-
-        return tx;
-    }
-
-    pub fn subscribe(
-        &mut self,
-        component: ConnectComponentType,
-        selector: Box<dyn Fn(&State) -> ComponentProps + 'static>,
-    ) {
-        let new_subscriber = Subscriber::new(component, selector);
-
-        let dispatcher = self.dispatcher.clone();
-        new_subscriber.notify(&self.state, dispatcher);
-
-        self.subscribers.push(new_subscriber);
+impl State {
+    fn update(&mut self, action: Action) {
+        match action {
+            Action::SetQuery(payload) => self.set_query(payload),
+            Action::AddNewEntry(key, value) => self.add(key, value),
+            Action::RemoveEntry(key) => self.remove(key),
+        }
     }
 
     fn add(&mut self, key: String, value: String) {
-        let Store { state, .. } = self;
-
-        state.rows_by_id.insert(key, value);
+        self.rows_by_id.insert(key, value);
 
         self.sync_store_file();
     }
 
     fn set_query(&mut self, query: String) {
-        self.state.query = query;
+        self.query = query;
     }
 
     fn remove(&mut self, key: String) {
-        let Store { state, .. } = self;
-
-        state.rows_by_id.remove(&key);
+        self.rows_by_id.remove(&key);
 
         self.sync_store_file();
-    }
-
-    fn notify(&self) {
-        for subscriber in &self.subscribers {
-            subscriber.notify(&self.state, self.dispatcher.clone());
-        }
     }
 
     // pub fn get(&self, key: &str) -> &str {
@@ -140,15 +89,113 @@ impl Store {
     // }
 
     fn sync_store_file(&self) {
-        let Store { state, .. } = self;
         let mut store_file = fs::File::create(STORE_FILE).unwrap();
 
         store_file
-            .write_all(serde_json::to_string(&state.rows_by_id).unwrap().as_bytes())
+            .write_all(serde_json::to_string(&self.rows_by_id).unwrap().as_bytes())
             .unwrap();
     }
 
     pub fn get_state(&self) -> &State {
-        &self.state
+        &self
+    }
+}
+
+pub struct Store {
+    state: State,
+    subscribers: Vec<Subscriber>,
+    dispatcher: glib::Sender<StoreAction>,
+}
+
+impl Store {
+    fn updateState(&self, action: Action) {
+        self.notify();
+    }
+
+    fn update(&mut self, action: StoreAction) {
+        match action {
+            StoreAction::StateUpdate(action) => self.state.update(action),
+            StoreAction::Subscribe(component, selector) => self.subscribe(component, selector),
+        }
+
+        self.notify();
+    }
+
+    pub fn subscribe(
+        &mut self,
+        component: ConnectComponentType,
+        selector: Box<dyn Fn(&State) -> ComponentProps + 'static>,
+    ) {
+        let new_subscriber = Subscriber::new(component, selector);
+
+        let dispatcher = self.dispatcher.clone();
+        new_subscriber.notify(&self.state);
+
+        self.subscribers.push(new_subscriber);
+    }
+
+    fn notify(&self) {
+        for subscriber in &self.subscribers {
+            subscriber.notify(&self.state);
+        }
+    }
+}
+
+pub struct Connect {
+    dispatcher: glib::Sender<StoreAction>,
+}
+
+impl Connect {
+    pub fn new() -> Connect {
+        let store_file = fs::File::open(STORE_FILE).unwrap();
+
+        // let (tx, rx): (Sender<Action>, Receiver<Action>) = mpsc::channel();
+
+        let (tx, rx) = glib::MainContext::channel::<StoreAction>(glib::PRIORITY_DEFAULT);
+
+        let state = State {
+            rows_by_id: serde_json::from_reader(BufReader::new(&store_file)).unwrap(),
+            query: String::new(),
+        };
+
+        let mut store = Store {
+            state,
+            subscribers: Vec::new(),
+            dispatcher: tx.clone(),
+        };
+
+        rx.attach(None, move |action| {
+            store.update(action);
+
+            return glib::Continue(true);
+        });
+
+        return Connect { dispatcher: tx };
+    }
+
+    pub fn subscribe(
+        &self,
+        component: ConnectComponentType,
+        selector: Box<dyn Fn(&State) -> ComponentProps + 'static>,
+    ) {
+        let dispatch = self.dispatcher.clone();
+
+        self.dispatcher
+            .send(StoreAction::Subscribe(component, selector))
+            .unwrap();
+    }
+
+    pub fn dispatch(&self, action: Action) {
+        self.dispatcher
+            .send(StoreAction::StateUpdate(action))
+            .unwrap()
+    }
+}
+
+impl Clone for Connect {
+    fn clone(&self) -> Self {
+        Connect {
+            dispatcher: self.dispatcher.clone(),
+        }
     }
 }

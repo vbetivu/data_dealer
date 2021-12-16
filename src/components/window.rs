@@ -5,19 +5,19 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use super::list::ListContainer;
-use super::store::{Action, Store};
+use super::store::{Action, Connect, Store};
 use crate::utils::add_child;
 
 pub struct Window {
     window: gtk::ApplicationWindow,
-    store: glib::Sender<Action>,
+    connect: Connect,
 }
 
 impl Window {
-    pub fn new(app: &gtk::Application, store: glib::Sender<Action>) -> Window {
+    pub fn new(app: &gtk::Application, connect: Connect) -> Window {
         Window {
             window: gtk::ApplicationWindow::new(app),
-            store,
+            connect,
         }
     }
 
@@ -71,7 +71,7 @@ impl Window {
         let add_button = gtk::Button::new();
         let scrolling_section =
             gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
-        let list = ListContainer::new(self.store.clone());
+        let list = ListContainer::new(&self.connect);
 
         add_button.set_label("+");
         scrolling_section.set_expand(true);
@@ -85,12 +85,10 @@ impl Window {
             add_child(&main, add_child(&scrolling_section, &list.component)),
         );
 
-        let cloned = self.store.clone();
+        let cloned = self.connect.clone();
 
         input.connect_changed(move |element| {
-            cloned
-                .send(Action::SetQuery(element.buffer().text()))
-                .unwrap();
+            cloned.dispatch(Action::SetQuery(element.buffer().text()));
         });
 
         // let store_ref = Rc::clone(store);

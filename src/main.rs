@@ -6,11 +6,11 @@ use gtk::prelude::*;
 use std::fs;
 use std::sync::{Arc, Mutex};
 
-use components::store::{Action, Store};
+use components::store::{Action, Connect, Store};
 use components::window::Window;
 
-fn build_ui(application: &gtk::Application, store: glib::Sender<Action>) {
-    let window = Window::new(application, store);
+fn build_ui(application: &gtk::Application, connect: Connect) {
+    let window = Window::new(application, connect);
 
     window.start();
 }
@@ -19,7 +19,7 @@ fn main() {
     let app = gtk::Application::new(Some("vbetivu.data-dealer"), Default::default());
 
     app.connect_activate(|app| {
-        let store = Store::new();
+        let connect = Connect::new();
 
         let provider = gtk::CssProvider::new();
 
@@ -32,7 +32,7 @@ fn main() {
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
 
-        build_ui(&app, store);
+        build_ui(&app, connect);
     });
 
     app.run();

@@ -12,11 +12,11 @@ pub enum ConnectComponentType {
 }
 
 impl ConnectComponentType {
-    pub fn render(&self, props: ComponentProps, dispatcher: glib::Sender<Action>) {
+    pub fn render(&self, props: ComponentProps) {
         match props {
             ComponentProps::List(props) => {
                 if let ConnectComponentType::List(component) = self {
-                    component.render(props, dispatcher)
+                    component.render(props)
                 }
             }
         }
