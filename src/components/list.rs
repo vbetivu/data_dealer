@@ -1,8 +1,9 @@
 use gtk::prelude::*;
+use std::sync::mpsc::Sender;
 
 use super::component::{ComponentProps, ConnectComponentType};
 
-use super::store::{RowVariant, State, Store};
+use super::store::{Action, RowVariant, State, Store};
 use crate::utils::{add_child, add_children, write_to_clipboard};
 
 pub type ListProps = Vec<RowVariant>;
@@ -12,15 +13,20 @@ pub struct ListContainer {
 }
 
 impl ListContainer {
-    pub fn new(store: &mut Store) -> ListContainer {
+    pub fn new(store: glib::Sender<Action>) -> ListContainer {
         let component = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         let list = List::new();
 
         component.add(&list.root);
 
-        store.subscribe(ConnectComponentType::List(list), |state: &State| {
-            return ComponentProps::List(state.get_visible_rows());
-        });
+        store
+            .send(Action::Subscribe(
+                ConnectComponentType::List(list),
+                Box::new(|state: &State| {
+                    return ComponentProps::List(state.get_visible_rows());
+                }),
+            ))
+            .unwrap();
 
         ListContainer { component }
     }
@@ -37,21 +43,23 @@ impl List {
         }
     }
 
-    pub fn render(&self, props: ListProps) {
+    pub fn render(&self, props: ListProps, dispatch: glib::Sender<Action>) {
         let List { root } = self;
 
         root.children().iter().for_each(|child| root.remove(child));
 
-        add_children(root, create_list(props));
+        add_children(root, create_list(props, dispatch));
 
         root.show_all();
     }
 }
 
-fn create_list(rows: Vec<RowVariant>) -> Vec<gtk::Box> {
+fn create_list(rows: Vec<RowVariant>, dispatcher: glib::Sender<Action>) -> Vec<gtk::Box> {
     let mut sections: Vec<gtk::Box> = Vec::with_capacity(rows.len());
 
     for row in rows {
+        let dispatcher = dispatcher.clone();
+
         match row {
             RowVariant::Heading(letter) => {
                 let section = gtk::Box::new(gtk::Orientation::Vertical, 16);
@@ -71,7 +79,9 @@ fn create_list(rows: Vec<RowVariant>) -> Vec<gtk::Box> {
                 content_button.connect_clicked(move |_| write_to_clipboard(&value));
 
                 delete_button.connect_clicked(move |_| {
-                    println!("delete");
+                    dispatcher
+                        .send(Action::RemoveEntry(String::from(&key)))
+                        .unwrap()
                 });
 
                 add_child(

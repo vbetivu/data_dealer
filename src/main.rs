@@ -4,11 +4,12 @@ mod utils;
 use gio::prelude::*;
 use gtk::prelude::*;
 use std::fs;
+use std::sync::{Arc, Mutex};
 
-use components::store::Store;
+use components::store::{Action, Store};
 use components::window::Window;
 
-fn build_ui(application: &gtk::Application, store: Store) {
+fn build_ui(application: &gtk::Application, store: glib::Sender<Action>) {
     let window = Window::new(application, store);
 
     window.start();

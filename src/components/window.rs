@@ -2,6 +2,7 @@ use gtk::prelude::*;
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use super::list::ListContainer;
 use super::store::{Action, Store};
@@ -9,26 +10,23 @@ use crate::utils::add_child;
 
 pub struct Window {
     window: gtk::ApplicationWindow,
-    store: Rc<RefCell<Store>>,
+    store: glib::Sender<Action>,
 }
 
 impl Window {
-    pub fn new(app: &gtk::Application, store: Store) -> Window {
+    pub fn new(app: &gtk::Application, store: glib::Sender<Action>) -> Window {
         Window {
             window: gtk::ApplicationWindow::new(app),
-            store: Rc::new(RefCell::new(store)),
+            store,
         }
     }
 
     pub fn start(self) {
-        let ref window = self.window;
-
         self.set_end_conditions();
         self.set_window_properties();
         self.set_window_styles();
         self.render();
-
-        window.show_all();
+        self.window.show_all();
     }
 
     fn set_end_conditions(&self) {
@@ -65,7 +63,7 @@ impl Window {
     }
 
     fn render(&self) {
-        let Window { window, store } = self;
+        // let Window { window, store } = self;
 
         let main = gtk::Box::new(gtk::Orientation::Vertical, 24);
         let top_row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
@@ -73,7 +71,7 @@ impl Window {
         let add_button = gtk::Button::new();
         let scrolling_section =
             gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
-        let list = ListContainer::new(&mut store.borrow_mut());
+        let list = ListContainer::new(self.store.clone());
 
         add_button.set_label("+");
         scrolling_section.set_expand(true);
@@ -83,73 +81,73 @@ impl Window {
         add_child(&main, &top_row);
 
         add_child(
-            window,
+            &self.window,
             add_child(&main, add_child(&scrolling_section, &list.component)),
         );
 
-        let store_ref = Rc::clone(store);
+        let cloned = self.store.clone();
 
         input.connect_changed(move |element| {
-            store_ref
-                .borrow_mut()
-                .dispatch(Action::SetQuery(element.buffer().text()))
+            cloned
+                .send(Action::SetQuery(element.buffer().text()))
+                .unwrap();
         });
 
-        let store_ref = Rc::clone(store);
+        // let store_ref = Rc::clone(store);
 
-        add_button.connect_clicked(glib::clone!(@weak window => move |_| {
-            show_dialog(window, &store_ref);
-        }));
+        // add_button.connect_clicked(glib::clone!(@weak window => move |_| {
+        //     show_dialog(window, &store_ref);
+        // }));
     }
 }
 
-fn show_dialog<W: IsA<gtk::Window>>(window: W, store: &Rc<RefCell<Store>>) {
-    let question_dialog = gtk::Dialog::new();
+// fn show_dialog<W: IsA<gtk::Window>>(window: W, store: &Rc<RefCell<Store>>) {
+//     let question_dialog = gtk::Dialog::new();
 
-    question_dialog.set_transient_for(Some(&window));
-    question_dialog.set_modal(true);
-    question_dialog.set_decorated(false);
-    question_dialog.set_destroy_with_parent(true);
-    question_dialog.set_width_request(300);
-    question_dialog.set_width_request(200);
-    question_dialog.add_button("Cancel", gtk::ResponseType::Cancel);
+//     question_dialog.set_transient_for(Some(&window));
+//     question_dialog.set_modal(true);
+//     question_dialog.set_decorated(false);
+//     question_dialog.set_destroy_with_parent(true);
+//     question_dialog.set_width_request(300);
+//     question_dialog.set_width_request(200);
+//     question_dialog.add_button("Cancel", gtk::ResponseType::Cancel);
 
-    let ok_button = question_dialog.add_button("Create", gtk::ResponseType::Ok);
+//     let ok_button = question_dialog.add_button("Create", gtk::ResponseType::Ok);
 
-    ok_button.set_sensitive(false);
+//     ok_button.set_sensitive(false);
 
-    let new_key = gtk::Entry::new();
+//     let new_key = gtk::Entry::new();
 
-    new_key.connect_changed(move |entry| {
-        ok_button.set_sensitive(entry.text().len() != 0);
-    });
+//     new_key.connect_changed(move |entry| {
+//         ok_button.set_sensitive(entry.text().len() != 0);
+//     });
 
-    question_dialog
-        .content_area()
-        .pack_end(&new_key, true, true, 20);
+//     question_dialog
+//         .content_area()
+//         .pack_end(&new_key, true, true, 20);
 
-    question_dialog.show_all();
+//     question_dialog.show_all();
 
-    let result = question_dialog.run();
+//     let result = question_dialog.run();
 
-    match result {
-        gtk::ResponseType::Ok => {
-            let new_key = new_key.text().to_string();
-            let new_value = gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD)
-                .wait_for_text()
-                .unwrap()
-                .to_string();
+//     match result {
+//         gtk::ResponseType::Ok => {
+//             let new_key = new_key.text().to_string();
+//             let new_value = gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD)
+//                 .wait_for_text()
+//                 .unwrap()
+//                 .to_string();
 
-            store
-                .borrow_mut()
-                .dispatch(Action::AddNewEntry(new_key, new_value));
-        }
-        _ => (),
-    }
+//             store
+//                 .borrow_mut()
+//                 .dispatch(Action::AddNewEntry(new_key, new_value));
+//         }
+//         _ => (),
+//     }
 
-    question_dialog.close();
+//     question_dialog.close();
 
-    unsafe {
-        question_dialog.destroy();
-    }
-}
+//     unsafe {
+//         question_dialog.destroy();
+//     }
+// }

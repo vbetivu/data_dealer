@@ -1,7 +1,7 @@
 [package]
 name = "data_dealer"
 version = "0.1.0"
-authors = ["Vladislav <vladislav.betivu@ellation.com>"]
+authors = ["Vladislav Betivu <vladislav.betivu@ellation.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

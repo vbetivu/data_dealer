@@ -1,4 +1,7 @@
+use std::sync::mpsc::Sender;
+
 use super::list::{List as ListComponent, ListProps};
+use super::store::Action;
 
 pub enum ComponentProps {
     List(ListProps),
@@ -9,11 +12,11 @@ pub enum ConnectComponentType {
 }
 
 impl ConnectComponentType {
-    pub fn render(&self, props: ComponentProps) {
+    pub fn render(&self, props: ComponentProps, dispatcher: glib::Sender<Action>) {
         match props {
             ComponentProps::List(props) => {
                 if let ConnectComponentType::List(component) = self {
-                    component.render(props)
+                    component.render(props, dispatcher)
                 }
             }
         }
