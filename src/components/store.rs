@@ -46,56 +46,11 @@ pub enum RowVariant {
 }
 
 pub struct State {
-    rows_by_id: HashMap<String, String>,
-    query: String,
+    pub rows_by_id: HashMap<String, String>,
+    pub query: String,
 }
 
-impl State {
-    pub fn get_visible_rows(&self) -> Vec<RowVariant> {
-        let State {
-            rows_by_id, query, ..
-        } = &self;
-
-        let query = query.trim();
-
-        let valid_map: Vec<(&String, &String)> = rows_by_id
-            .iter()
-            .filter(|(key, ..)| key.contains(query))
-            .collect();
-
-        let mut headings: Vec<char> = valid_map
-            .iter()
-            .map(|(key, ..)| key.chars().next().unwrap())
-            .collect();
-
-        headings.sort();
-        headings.dedup();
-
-        let mut result: Vec<RowVariant> = headings
-            .into_iter()
-            .map(|e| RowVariant::Heading(e))
-            .collect();
-
-        let mut data: Vec<RowVariant> = valid_map
-            .into_iter()
-            .map(|(key, value)| RowVariant::Data(key.clone(), value.clone()))
-            .collect();
-
-        result.append(&mut data);
-
-        result.sort_by(|a, b| get_compare_value(a).cmp(&get_compare_value(b)));
-
-        let result = result
-            .into_iter()
-            .map(|e| match e {
-                RowVariant::Heading(x) => RowVariant::Heading(x.to_ascii_uppercase()),
-                _ => e,
-            })
-            .collect();
-
-        return result;
-    }
-}
+impl State {}
 
 pub struct Store {
     state: State,
@@ -195,12 +150,5 @@ impl Store {
 
     pub fn get_state(&self) -> &State {
         &self.state
-    }
-}
-
-fn get_compare_value(value: &RowVariant) -> String {
-    match value {
-        RowVariant::Heading(x) => x.to_string().to_ascii_lowercase(),
-        RowVariant::Data(x, _) => x.to_string().to_ascii_lowercase(),
     }
 }
