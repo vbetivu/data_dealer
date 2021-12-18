@@ -1,9 +1,8 @@
 use gtk::prelude::*;
-use std::sync::mpsc::Sender;
 
-use super::component::{ComponentProps, ConnectComponentType};
+use super::component::{ComponentProps, ComponentType};
 
-use super::store::{Action, Connect, RowVariant, State, Store};
+use super::store::{Action, Connect, RowVariant, State};
 use crate::utils::{add_child, add_children, write_to_clipboard};
 
 pub type ListProps = Vec<RowVariant>;
@@ -20,7 +19,7 @@ impl ListContainer {
         component.add(&list.root);
 
         connect.subscribe(
-            ConnectComponentType::List(list),
+            ComponentType::List(list),
             Box::new(|state: &State| {
                 let State {
                     rows_by_id, query, ..

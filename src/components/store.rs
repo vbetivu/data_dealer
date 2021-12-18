@@ -1,9 +1,8 @@
 use std::fs;
 use std::io::Write;
-use std::sync::{Arc, Mutex};
 use std::{collections::HashMap, io::BufReader};
 
-use super::component::{ComponentProps, ConnectComponentType};
+use super::component::{ComponentProps, ComponentType};
 
 const STORE_FILE: &str = "store.json";
 
@@ -16,18 +15,18 @@ pub enum Action {
 enum StoreAction {
     StateUpdate(Action),
     Subscribe(
-        ConnectComponentType,
+        ComponentType,
         Box<dyn Fn(&State) -> ComponentProps + 'static>,
     ),
 }
 
 pub struct Subscriber {
-    component: ConnectComponentType,
+    component: ComponentType,
     selector: Box<dyn Fn(&State) -> ComponentProps + 'static>,
 }
 
 impl Subscriber {
-    fn new<S>(component: ConnectComponentType, selector: S) -> Subscriber
+    fn new<S>(component: ComponentType, selector: S) -> Subscriber
     where
         S: Fn(&State) -> ComponentProps + 'static,
     {
@@ -95,23 +94,14 @@ impl State {
             .write_all(serde_json::to_string(&self.rows_by_id).unwrap().as_bytes())
             .unwrap();
     }
-
-    pub fn get_state(&self) -> &State {
-        &self
-    }
 }
 
 pub struct Store {
     state: State,
     subscribers: Vec<Subscriber>,
-    dispatcher: glib::Sender<StoreAction>,
 }
 
 impl Store {
-    fn updateState(&self, action: Action) {
-        self.notify();
-    }
-
     fn update(&mut self, action: StoreAction) {
         match action {
             StoreAction::StateUpdate(action) => self.state.update(action),
@@ -123,12 +113,11 @@ impl Store {
 
     pub fn subscribe(
         &mut self,
-        component: ConnectComponentType,
+        component: ComponentType,
         selector: Box<dyn Fn(&State) -> ComponentProps + 'static>,
     ) {
         let new_subscriber = Subscriber::new(component, selector);
 
-        let dispatcher = self.dispatcher.clone();
         new_subscriber.notify(&self.state);
 
         self.subscribers.push(new_subscriber);
@@ -149,8 +138,6 @@ impl Connect {
     pub fn new() -> Connect {
         let store_file = fs::File::open(STORE_FILE).unwrap();
 
-        // let (tx, rx): (Sender<Action>, Receiver<Action>) = mpsc::channel();
-
         let (tx, rx) = glib::MainContext::channel::<StoreAction>(glib::PRIORITY_DEFAULT);
 
         let state = State {
@@ -161,7 +148,6 @@ impl Connect {
         let mut store = Store {
             state,
             subscribers: Vec::new(),
-            dispatcher: tx.clone(),
         };
 
         rx.attach(None, move |action| {
@@ -175,11 +161,9 @@ impl Connect {
 
     pub fn subscribe(
         &self,
-        component: ConnectComponentType,
+        component: ComponentType,
         selector: Box<dyn Fn(&State) -> ComponentProps + 'static>,
     ) {
-        let dispatch = self.dispatcher.clone();
-
         self.dispatcher
             .send(StoreAction::Subscribe(component, selector))
             .unwrap();

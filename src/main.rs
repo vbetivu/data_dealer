@@ -4,9 +4,8 @@ mod utils;
 use gio::prelude::*;
 use gtk::prelude::*;
 use std::fs;
-use std::sync::{Arc, Mutex};
 
-use components::store::{Action, Connect, Store};
+use components::store::Connect;
 use components::window::Window;
 
 fn build_ui(application: &gtk::Application, connect: Connect) {

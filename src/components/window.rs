@@ -1,11 +1,7 @@
 use gtk::prelude::*;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
-
 use super::list::ListContainer;
-use super::store::{Action, Connect, Store};
+use super::store::{Action, Connect};
 use crate::utils::add_child;
 
 pub struct Window {
@@ -91,61 +87,59 @@ impl Window {
             cloned.dispatch(Action::SetQuery(element.buffer().text()));
         });
 
-        // let store_ref = Rc::clone(store);
+        let connect = self.connect.clone();
 
-        // add_button.connect_clicked(glib::clone!(@weak window => move |_| {
-        //     show_dialog(window, &store_ref);
-        // }));
+        add_button.connect_clicked(glib::clone!(@weak self.window as window => move |_| {
+            show_dialog(window, &connect);
+        }));
     }
 }
 
-// fn show_dialog<W: IsA<gtk::Window>>(window: W, store: &Rc<RefCell<Store>>) {
-//     let question_dialog = gtk::Dialog::new();
+fn show_dialog<W: IsA<gtk::Window>>(window: W, connect: &Connect) {
+    let question_dialog = gtk::Dialog::new();
 
-//     question_dialog.set_transient_for(Some(&window));
-//     question_dialog.set_modal(true);
-//     question_dialog.set_decorated(false);
-//     question_dialog.set_destroy_with_parent(true);
-//     question_dialog.set_width_request(300);
-//     question_dialog.set_width_request(200);
-//     question_dialog.add_button("Cancel", gtk::ResponseType::Cancel);
+    question_dialog.set_transient_for(Some(&window));
+    question_dialog.set_modal(true);
+    question_dialog.set_decorated(false);
+    question_dialog.set_destroy_with_parent(true);
+    question_dialog.set_width_request(300);
+    question_dialog.set_width_request(200);
+    question_dialog.add_button("Cancel", gtk::ResponseType::Cancel);
 
-//     let ok_button = question_dialog.add_button("Create", gtk::ResponseType::Ok);
+    let ok_button = question_dialog.add_button("Create", gtk::ResponseType::Ok);
 
-//     ok_button.set_sensitive(false);
+    ok_button.set_sensitive(false);
 
-//     let new_key = gtk::Entry::new();
+    let new_key = gtk::Entry::new();
 
-//     new_key.connect_changed(move |entry| {
-//         ok_button.set_sensitive(entry.text().len() != 0);
-//     });
+    new_key.connect_changed(move |entry| {
+        ok_button.set_sensitive(entry.text().len() != 0);
+    });
 
-//     question_dialog
-//         .content_area()
-//         .pack_end(&new_key, true, true, 20);
+    question_dialog
+        .content_area()
+        .pack_end(&new_key, true, true, 20);
 
-//     question_dialog.show_all();
+    question_dialog.show_all();
 
-//     let result = question_dialog.run();
+    let result = question_dialog.run();
 
-//     match result {
-//         gtk::ResponseType::Ok => {
-//             let new_key = new_key.text().to_string();
-//             let new_value = gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD)
-//                 .wait_for_text()
-//                 .unwrap()
-//                 .to_string();
+    match result {
+        gtk::ResponseType::Ok => {
+            let new_key = new_key.text().to_string();
+            let new_value = gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD)
+                .wait_for_text()
+                .unwrap()
+                .to_string();
 
-//             store
-//                 .borrow_mut()
-//                 .dispatch(Action::AddNewEntry(new_key, new_value));
-//         }
-//         _ => (),
-//     }
+            connect.dispatch(Action::AddNewEntry(new_key, new_value));
+        }
+        _ => (),
+    }
 
-//     question_dialog.close();
+    question_dialog.close();
 
-//     unsafe {
-//         question_dialog.destroy();
-//     }
-// }
+    unsafe {
+        question_dialog.destroy();
+    }
+}
