@@ -53,49 +53,6 @@ pub struct State {
     pub query: String,
 }
 
-impl State {
-    fn update(&mut self, action: Action) {
-        match action {
-            Action::SetQuery(payload) => self.set_query(payload),
-            Action::AddNewEntry(key, value) => self.add(key, value),
-            Action::RemoveEntry(key) => self.remove(key),
-        }
-    }
-
-    fn add(&mut self, key: String, value: String) {
-        self.rows_by_id.insert(key, value);
-
-        self.sync_store_file();
-    }
-
-    fn set_query(&mut self, query: String) {
-        self.query = query;
-    }
-
-    fn remove(&mut self, key: String) {
-        self.rows_by_id.remove(&key);
-
-        self.sync_store_file();
-    }
-
-    // pub fn get(&self, key: &str) -> &str {
-    //     let Store { state, .. } = self;
-
-    //     return state
-    //         .rows_by_id
-    //         .get(key)
-    //         .expect(&format!("Missing key requested {}", key));
-    // }
-
-    fn sync_store_file(&self) {
-        let mut store_file = fs::File::create(STORE_FILE).unwrap();
-
-        store_file
-            .write_all(serde_json::to_string(&self.rows_by_id).unwrap().as_bytes())
-            .unwrap();
-    }
-}
-
 pub struct Store {
     state: State,
     subscribers: Vec<Subscriber>,
@@ -104,7 +61,7 @@ pub struct Store {
 impl Store {
     fn update(&mut self, action: StoreAction) {
         match action {
-            StoreAction::StateUpdate(action) => self.state.update(action),
+            StoreAction::StateUpdate(action) => self.update_state(action),
             StoreAction::Subscribe(component, selector) => self.subscribe(component, selector),
         }
 
@@ -127,6 +84,42 @@ impl Store {
         for subscriber in &self.subscribers {
             subscriber.notify(&self.state);
         }
+    }
+
+    fn update_state(&mut self, action: Action) {
+        match action {
+            Action::SetQuery(payload) => self.set_query(payload),
+            Action::AddNewEntry(key, value) => self.add(key, value),
+            Action::RemoveEntry(key) => self.remove(key),
+        }
+    }
+
+    fn add(&mut self, key: String, value: String) {
+        self.state.rows_by_id.insert(key, value);
+
+        self.sync_store_file();
+    }
+
+    fn set_query(&mut self, query: String) {
+        self.state.query = query;
+    }
+
+    fn remove(&mut self, key: String) {
+        self.state.rows_by_id.remove(&key);
+
+        self.sync_store_file();
+    }
+
+    fn sync_store_file(&self) {
+        let mut store_file = fs::File::create(STORE_FILE).unwrap();
+
+        store_file
+            .write_all(
+                serde_json::to_string(&self.state.rows_by_id)
+                    .unwrap()
+                    .as_bytes(),
+            )
+            .unwrap();
     }
 }
 
