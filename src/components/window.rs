@@ -1,7 +1,7 @@
 use gtk::prelude::*;
 
 use super::list::ListContainer;
-use super::store::{Action, Connect};
+use super::store::{Action, Connect, EntryValue};
 use crate::utils::add_child;
 
 pub struct Window {
@@ -59,8 +59,6 @@ impl Window {
     }
 
     fn render(&self) {
-        // let Window { window, store } = self;
-
         let main = gtk::Box::new(gtk::Orientation::Vertical, 24);
         let top_row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
         let input = gtk::Entry::new();
@@ -127,12 +125,14 @@ fn show_dialog<W: IsA<gtk::Window>>(window: W, connect: &Connect) {
     match result {
         gtk::ResponseType::Ok => {
             let new_key = new_key.text().to_string();
-            let new_value = gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD)
-                .wait_for_text()
-                .unwrap()
-                .to_string();
+            let text = gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD).wait_for_text();
+            let image = gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD).wait_for_image();
 
-            connect.dispatch(Action::AddNewEntry(new_key, new_value));
+            if let Some(text) = text {
+                connect.dispatch(Action::AddNewEntry(new_key, EntryValue::Text(text)));
+            } else if let Some(image) = image {
+                connect.dispatch(Action::AddNewEntry(new_key, EntryValue::Image(image)))
+            }
         }
         _ => (),
     }

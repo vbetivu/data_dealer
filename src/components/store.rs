@@ -2,13 +2,20 @@ use std::fs;
 use std::io::Write;
 use std::{collections::HashMap, io::BufReader};
 
+use gdk::gdk_pixbuf::Pixbuf;
+
 use super::component::{ComponentProps, ComponentType};
 
 const STORE_FILE: &str = "store.json";
 
+pub enum EntryValue {
+    Image(Pixbuf),
+    Text(glib::GString),
+}
+
 pub enum Action {
     SetQuery(String),
-    AddNewEntry(String, String),
+    AddNewEntry(String, EntryValue),
     RemoveEntry(String),
 }
 
@@ -94,8 +101,23 @@ impl Store {
         }
     }
 
-    fn add(&mut self, key: String, value: String) {
-        self.state.rows_by_id.insert(key, value);
+    fn add(&mut self, key: String, value: EntryValue) {
+        match value {
+            EntryValue::Image(image) => {
+                let filetype = "png";
+
+                let filename = format!("images/{}.{}", key, filetype);
+
+                image.savev(&filename, filetype, &[]).unwrap();
+
+                self.state
+                    .rows_by_id
+                    .insert(key, format!("file::/{}", filename));
+            }
+            EntryValue::Text(text) => {
+                self.state.rows_by_id.insert(key, text.to_string());
+            }
+        }
 
         self.sync_store_file();
     }

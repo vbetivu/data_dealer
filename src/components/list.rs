@@ -3,7 +3,7 @@ use gtk::prelude::*;
 use super::component::{ComponentProps, ComponentType};
 
 use super::store::{Action, Connect, RowVariant, State};
-use crate::utils::{add_child, add_children, write_to_clipboard};
+use crate::utils::{add_child, add_children, write_to_clipboard, ClipboardValue};
 
 pub type ListProps = Vec<RowVariant>;
 
@@ -52,7 +52,7 @@ impl ListContainer {
 
                 result.append(&mut data);
 
-                result.sort_by(|a, b| get_compare_value(a).cmp(&get_compare_value(b)));
+                result.sort_by(|a, b| get_row_variant_key(a).cmp(&get_row_variant_key(b)));
 
                 let result = result
                     .into_iter()
@@ -104,31 +104,27 @@ fn create_list(rows: Vec<RowVariant>, dispatcher: &Connect) -> Vec<gtk::Box> {
             RowVariant::Heading(letter) => {
                 let section = gtk::Box::new(gtk::Orientation::Vertical, 16);
                 let label = gtk::Label::new(Some(&letter.to_string()));
+
                 section.add(&label);
                 sections.push(section);
             }
             RowVariant::Data(key, value) => {
                 let section = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-                let content_button = gtk::Button::new();
-                let wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-                let key_label = gtk::Label::new(Some(&key));
-                let value_label = gtk::Label::new(Some(&value));
+
+                let content = if value.starts_with("file::/") {
+                    create_image_content(&key, value)
+                } else {
+                    create_text_content(&key, value)
+                };
+
                 let delete_button = gtk::Button::new();
                 let delete_button_label = gtk::Label::new(Some("DEL"));
-
-                content_button.connect_clicked(move |_| write_to_clipboard(&value));
 
                 delete_button.connect_clicked(move |_| {
                     dispatcher.dispatch(Action::RemoveEntry(String::from(&key)))
                 });
 
-                add_child(
-                    &section,
-                    add_child(
-                        &content_button,
-                        add_children(&wrapper, vec![key_label, value_label]),
-                    ),
-                );
+                add_child(&section, &content);
 
                 add_child(&section, add_child(&delete_button, &delete_button_label));
 
@@ -140,7 +136,37 @@ fn create_list(rows: Vec<RowVariant>, dispatcher: &Connect) -> Vec<gtk::Box> {
     return sections;
 }
 
-fn get_compare_value(value: &RowVariant) -> String {
+fn create_text_content(key: &String, value: String) -> gtk::Button {
+    let content_button = gtk::Button::new();
+    let wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+
+    add_child(&wrapper, &gtk::Label::new(Some(&key)));
+    add_child(&wrapper, &gtk::Label::new(Some(&value)));
+
+    content_button.connect_clicked(move |_| write_to_clipboard(ClipboardValue::Text(&value)));
+
+    add_child(&content_button, &wrapper);
+
+    return content_button;
+}
+
+fn create_image_content(key: &String, value: String) -> gtk::Button {
+    let content_button = gtk::Button::new();
+    let wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+
+    let pixbuf = gdk::gdk_pixbuf::Pixbuf::from_file(&value[7..]).unwrap();
+
+    add_child(&wrapper, &gtk::Label::new(Some(&key)));
+    add_child(&wrapper, &gtk::Image::from_pixbuf(Some(&pixbuf)));
+
+    content_button.connect_clicked(move |_| write_to_clipboard(ClipboardValue::Image(&pixbuf)));
+
+    add_child(&content_button, &wrapper);
+
+    return content_button;
+}
+
+fn get_row_variant_key(value: &RowVariant) -> String {
     match value {
         RowVariant::Heading(x) => x.to_string().to_ascii_lowercase(),
         RowVariant::Data(x, _) => x.to_string().to_ascii_lowercase(),
