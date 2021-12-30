@@ -16,7 +16,7 @@ impl ListContainer {
         let component = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         let list = List::new(connect.clone());
 
-        component.add(&list.root);
+        add_child(&component, &list.root);
 
         connect.subscribe(
             ComponentType::List(list),
@@ -105,7 +105,7 @@ fn create_list(rows: Vec<RowVariant>, dispatcher: &Connect) -> Vec<gtk::Box> {
                 let section = gtk::Box::new(gtk::Orientation::Vertical, 16);
                 let label = gtk::Label::new(Some(&letter.to_string()));
 
-                section.add(&label);
+                add_child(&section, &label);
                 sections.push(section);
             }
             RowVariant::Data(key, value) => {

@@ -15,7 +15,7 @@ pub enum EntryValue {
 
 pub enum Action {
     SetQuery(String),
-    AddNewEntry(String, EntryValue),
+    AddNewEntry(EntryValue),
     RemoveEntry(String),
 }
 
@@ -96,26 +96,28 @@ impl Store {
     fn update_state(&mut self, action: Action) {
         match action {
             Action::SetQuery(payload) => self.set_query(payload),
-            Action::AddNewEntry(key, value) => self.add(key, value),
+            Action::AddNewEntry(value) => self.add(value),
             Action::RemoveEntry(key) => self.remove(key),
         }
     }
 
-    fn add(&mut self, key: String, value: EntryValue) {
+    fn add(&mut self, value: EntryValue) {
         match value {
             EntryValue::Image(image) => {
                 let filetype = "png";
 
-                let filename = format!("images/{}.{}", key, filetype);
+                let filename = format!("images/{}.{}", self.state.query, filetype);
 
                 image.savev(&filename, filetype, &[]).unwrap();
 
                 self.state
                     .rows_by_id
-                    .insert(key, format!("file::/{}", filename));
+                    .insert(self.state.query.clone(), format!("file::/{}", filename));
             }
             EntryValue::Text(text) => {
-                self.state.rows_by_id.insert(key, text.to_string());
+                self.state
+                    .rows_by_id
+                    .insert(self.state.query.clone(), text.to_string());
             }
         }
 
