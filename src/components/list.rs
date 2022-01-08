@@ -1,4 +1,5 @@
 use gtk::prelude::*;
+use pango;
 
 use super::component::{ComponentProps, ComponentType};
 
@@ -14,6 +15,9 @@ pub struct ListContainer {
 impl ListContainer {
     pub fn new(connect: &Connect) -> ListContainer {
         let component = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+
+        component.set_expand(true);
+
         let list = List::new(connect.clone());
 
         add_child(&component, &list.root);
@@ -77,10 +81,11 @@ pub struct List {
 
 impl List {
     pub fn new(dispatcher: Connect) -> List {
-        List {
-            root: gtk::Box::new(gtk::Orientation::Vertical, 20),
-            dispatcher,
-        }
+        let root = gtk::Box::new(gtk::Orientation::Vertical, 8);
+
+        root.set_expand(true);
+
+        List { root, dispatcher }
     }
 
     pub fn render(&self, props: ListProps) {
@@ -102,14 +107,34 @@ fn create_list(rows: Vec<RowVariant>, dispatcher: &Connect) -> Vec<gtk::Box> {
 
         match row {
             RowVariant::Heading(letter) => {
-                let section = gtk::Box::new(gtk::Orientation::Vertical, 16);
+                let section = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+
+                section.set_halign(gtk::Align::Start);
+
+                let letter_wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+
+                letter_wrapper.set_widget_name("letter_wrapper");
+
                 let label = gtk::Label::new(Some(&letter.to_string()));
 
-                add_child(&section, &label);
+                label.set_widget_name("letter_label");
+
+                add_child(&letter_wrapper, &label);
+                add_child(&section, &letter_wrapper);
+
+                let bookmark = gtk::Box::new(gtk::Orientation::Vertical, 0);
+
+                bookmark.set_widget_name("bookmark");
+
+                add_child(&section, &bookmark);
+
                 sections.push(section);
             }
             RowVariant::Data(key, value) => {
                 let section = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+
+                section.set_widget_name("data_row");
+                section.set_vexpand(false);
 
                 let content = if value.starts_with("file::/") {
                     create_image_content(&key, value)
@@ -118,15 +143,17 @@ fn create_list(rows: Vec<RowVariant>, dispatcher: &Connect) -> Vec<gtk::Box> {
                 };
 
                 let delete_button = gtk::Button::new();
-                let delete_button_label = gtk::Label::new(Some("DEL"));
+                let delete_icon = gtk::Image::from_icon_name(Some("delete"), gtk::IconSize::Button);
 
                 delete_button.connect_clicked(move |_| {
                     dispatcher.dispatch(Action::RemoveEntry(String::from(&key)))
                 });
 
+                delete_button.set_valign(gtk::Align::Center);
+
                 add_child(&section, &content);
 
-                add_child(&section, add_child(&delete_button, &delete_button_label));
+                add_child(&section, add_child(&delete_button, &delete_icon));
 
                 sections.push(section);
             }
@@ -138,10 +165,27 @@ fn create_list(rows: Vec<RowVariant>, dispatcher: &Connect) -> Vec<gtk::Box> {
 
 fn create_text_content(key: &String, value: String) -> gtk::Button {
     let content_button = gtk::Button::new();
+    content_button.set_widget_name("content_button");
+    content_button.set_expand(true);
+
     let wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 8);
 
-    add_child(&wrapper, &gtk::Label::new(Some(&key)));
-    add_child(&wrapper, &gtk::Label::new(Some(&value)));
+    wrapper.set_homogeneous(true);
+
+    let key_label = gtk::Label::new(Some(&key));
+
+    key_label.set_halign(gtk::Align::Start);
+    key_label.set_ellipsize(pango::EllipsizeMode::End);
+    key_label.set_single_line_mode(true);
+
+    let value_label = gtk::Label::new(Some(&value));
+
+    value_label.set_halign(gtk::Align::Start);
+    value_label.set_ellipsize(pango::EllipsizeMode::Middle);
+    value_label.set_single_line_mode(true);
+
+    add_child(&wrapper, &key_label);
+    add_child(&wrapper, &value_label);
 
     content_button.connect_clicked(move |_| write_to_clipboard(ClipboardValue::Text(&value)));
 
@@ -152,12 +196,27 @@ fn create_text_content(key: &String, value: String) -> gtk::Button {
 
 fn create_image_content(key: &String, value: String) -> gtk::Button {
     let content_button = gtk::Button::new();
+    content_button.set_widget_name("content_button");
+    content_button.set_expand(true);
+
     let wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 8);
 
-    let pixbuf = gdk::gdk_pixbuf::Pixbuf::from_file(&value[7..]).unwrap();
+    wrapper.set_homogeneous(true);
 
-    add_child(&wrapper, &gtk::Label::new(Some(&key)));
-    add_child(&wrapper, &gtk::Image::from_pixbuf(Some(&pixbuf)));
+    let key_label = gtk::Label::new(Some(&key));
+
+    key_label.set_halign(gtk::Align::Start);
+
+    let mut pixbuf = gdk::gdk_pixbuf::Pixbuf::from_file(&value[7..]).unwrap();
+
+    pixbuf = pixbuf
+        .scale_simple(150, 150, gdk::gdk_pixbuf::InterpType::Bilinear)
+        .unwrap();
+
+    let value_image = gtk::Image::from_pixbuf(Some(&pixbuf));
+
+    add_child(&wrapper, &key_label);
+    add_child(&wrapper, &value_image);
 
     content_button.connect_clicked(move |_| write_to_clipboard(ClipboardValue::Image(&pixbuf)));
 

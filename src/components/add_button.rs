@@ -42,8 +42,9 @@ pub struct AddButton {
 impl AddButton {
     pub fn new(dispatcher: Connect) -> AddButton {
         let root = gtk::Button::new();
+        let add_icon = gtk::Image::from_icon_name(Some("list-add"), gtk::IconSize::Button);
 
-        root.set_label("+");
+        add_child(&root, &add_icon);
 
         root.connect_clicked(move |_| {
             let text = gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD).wait_for_text();

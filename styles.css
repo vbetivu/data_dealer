@@ -1,5 +1,39 @@
+window {
+  background-color: #efefef;
+}
+
+#top_row {
+  padding: 12px;
+  border-radius: 4px;
+  background-color: #fff;
+}
+
+#letter_wrapper {
+  padding: 12px 0 12px 20px;
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+  background-color: #fff;
+}
+
 #letter_label {
   font-weight: bold;
+}
+
+#bookmark {
+  border-width: 20px;
+  border-color: #fff;
+  border-style: solid;
+  border-right-color: transparent;
+}
+
+#data_row{
+  border-radius: 4px;
+  padding: 4px;
+  background-color: #fff;
+}
+
+#content_button {
+  background-color: transparent;
 }
 
 button {
@@ -8,3 +42,6 @@ button {
   outline: none;
   box-shadow: none;
 }
+
+
+

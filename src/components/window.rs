@@ -60,19 +60,30 @@ impl Window {
     }
 
     fn render(&self) {
-        let main = gtk::Box::new(gtk::Orientation::Vertical, 24);
-        let top_row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-        let input = gtk::Entry::new();
+        let main = gtk::Box::new(gtk::Orientation::Vertical, 16);
+        let top_row = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+
+        top_row.set_widget_name("top_row");
+
+        let input = gtk::SearchEntry::new();
+
+        input.set_hexpand(true);
+
         let add_button = AddButtonContainer::new(&self.connect);
+
+        let horizontal_line = gtk::Separator::new(gtk::Orientation::Horizontal);
+
         let scrolling_section =
             gtk::ScrolledWindow::new(gtk::NONE_ADJUSTMENT, gtk::NONE_ADJUSTMENT);
-        let list = ListContainer::new(&self.connect);
 
         scrolling_section.set_expand(true);
+
+        let list = ListContainer::new(&self.connect);
 
         add_child(&top_row, &input);
         add_child(&top_row, &add_button.component);
         add_child(&main, &top_row);
+        add_child(&main, &horizontal_line);
 
         add_child(
             &self.window,
